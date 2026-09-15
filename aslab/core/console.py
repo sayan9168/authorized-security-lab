@@ -42,6 +42,10 @@ class Console(cmd.Cmd):
         except KeyError as exc:
             self.output.print(f"[red]{exc}[/red]")
 
+    def complete_use(self, text: str, line: str, begidx: int, endidx: int) -> list[str]:
+        prefix = text.lower()
+        return [name for name in self.loader.names() if name.lower().startswith(prefix)]
+
     def do_set(self, line: str) -> None:
         """set <option> <value> — set a module option."""
         if self.current is None:
@@ -54,6 +58,12 @@ class Console(cmd.Cmd):
             self.current.set_option(parts[0], " ".join(parts[1:]))
         except (ValueError, KeyError) as exc:
             self.output.print(f"[red]{exc}[/red]")
+
+    def complete_set(self, text: str, line: str, begidx: int, endidx: int) -> list[str]:
+        if self.current is None:
+            return []
+        prefix = text.upper()
+        return [name for name in self.current.options if name.startswith(prefix)]
 
     def do_show(self, line: str) -> None:
         """show options — display selected module options."""
@@ -86,7 +96,8 @@ class Console(cmd.Cmd):
             return
         try:
             result = self.current.run()
-            self.output.print(f"[{ 'green' if result.status == 'ok' else 'red' }]{result.message}[/{ 'green' if result.status == 'ok' else 'red' }]")
+            style = "green" if result.status == "ok" else "red"
+            self.output.print(f"[{style}]{result.message}[/{style}]")
             if result.data:
                 self.output.print_json(data=result.data)
         except Exception as exc:
@@ -122,6 +133,9 @@ class Console(cmd.Cmd):
         for session in self.handler.sessions():
             table.add_row(str(session.session_id), session.peer_ip, str(session.peer_port), session.hostname, session.transport, f"{session.age_seconds}s")
         self.output.print(table)
+
+    def complete_sessions(self, text: str, line: str, begidx: int, endidx: int) -> list[str]:
+        return [str(s.session_id) for s in self.handler.sessions() if str(s.session_id).startswith(text)]
 
     def do_background(self, _: str) -> None:
         """background — return to the top-level prompt."""
